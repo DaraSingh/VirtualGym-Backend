@@ -8,7 +8,20 @@ const bcrypt = require("bcrypt");
 app.use(cors());
 app.use(express.json());
 
-
+app.post("/login", async (req, res) => {
+  try {
+    // console.log(req.body);
+    // res.json({success:true})
+    const user = await userModel.findOne({ email: req.body.email });
+    if (!user) return res.status(401).json({ message: "Incorrect credential" });
+    const result = await bcrypt.compare(req.body.password, user.password);
+    if (result == false)
+      return res.status(401).json({ message: "Incorrect credential" });
+    res.status(200).json({ message: "Logged in Successfully" });
+  } catch (err) {
+    res.status(400).json({ message: err });
+  }
+});
 
 app.post("/register", async (req, res) => {
   try {
