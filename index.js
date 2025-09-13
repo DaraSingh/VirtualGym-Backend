@@ -4,19 +4,40 @@ const db = require("./config/mongoose-connection");
 const app = express();
 const userModel = require("./models/userModel");
 const bcrypt = require("bcrypt");
-
-app.use(cors());
+const cookieParser = require("cookie-parser");
+const jwt=require("jsonwebtoken")
+app.use(cookieParser())
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
 app.use(express.json());
+
+app.post("/check_auth",(req,res)=>{
+    try {
+        const token=req.cookies.token
+        if(token) res.status(200).json({"isLoggedIn":true})
+        else res.status(200).json({"isLoggedIn":false})
+    } catch (error) {
+        res.status(401).json({message:error})
+        console.log({message:error})
+    }
+})
+
+app.get("/logout",(req,res)=>{
+    res.clearCookie('token')
+    res.status(200).json({message:"Logged Out Successfully"})
+})
 
 app.post("/login", async (req, res) => {
   try {
-    // console.log(req.body);
-    // res.json({success:true})
     const user = await userModel.findOne({ email: req.body.email });
     if (!user) return res.status(401).json({ message: "Incorrect credential" });
     const result = await bcrypt.compare(req.body.password, user.password);
     if (result == false)
       return res.status(401).json({ message: "Incorrect credential" });
+    const token=jwt.sign(user.email,"secretKey");
+    res.cookie("token",token)
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {
     res.status(400).json({ message: err });
