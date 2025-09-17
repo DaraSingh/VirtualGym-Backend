@@ -5,29 +5,76 @@ const app = express();
 const userModel = require("./models/userModel");
 const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
-const jwt=require("jsonwebtoken")
-app.use(cookieParser())
-app.use(cors({
+const jwt = require("jsonwebtoken");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const fetch = require("node-fetch"); //=>for rapid api
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.use(cookieParser());
+app.use(
+  cors({
     origin: "http://localhost:5173",
-    credentials: true
-}));
+    credentials: true,
+  })
+);
 app.use(express.json());
 
-app.post("/check_auth",(req,res)=>{
-    try {
-        const token=req.cookies.token
-        if(token) res.status(200).json({"isLoggedIn":true})
-        else res.status(200).json({"isLoggedIn":false})
-    } catch (error) {
-        res.status(401).json({message:error})
-        console.log({message:error})
-    }
-})
+app.post("/generate", async (req, res) => {
+  // console.log(req.body)
+  const token = req.cookies.token;
+  const email = jwt.verify(token, "secretKey");
+  const updatedUser = await userModel.findOneAndUpdate(
+    { email: email },
+    { $set: req.body }, // update only the fields provided
+    { new: true } // return the updated document
+  );
 
-app.get("/logout",(req,res)=>{
-    res.clearCookie('token')
-    res.status(200).json({message:"Logged Out Successfully"})
-})
+  console.log(updatedUser);
+  const prompt = `
+    Generate a 30-day exercise plan for an individual:
+    - Age: ${updatedUser.age} years
+    - Weight: ${updatedUser.weight} kg
+    - Height: ${updatedUser.height} ft
+    - Additional Info: ${updatedUser.otherInfo}
+
+    Return the response strictly in JSON with the structure:
+    [
+      { "day": 1, "exercises": ["exercise1", "exercise2", ...] },
+      { "day": 2, "exercises": [...] }
+    ]
+    `;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    console.log(text)
+});
+
+app.post("/generatePlan", async (req, res) => {
+  const token = req.cookies.token;
+  const email = jwt.verify(token,"secretKey");
+  // console.log(token);
+  const user = await userModel.findOne({ email: email });
+  // console.log(user);
+  if (user) res.status(200).json(user);
+  else res.status(400).json({ message: "Record Not Found" });
+});
+
+app.post("/check_auth", (req, res) => {
+  try {
+    const token = req.cookies.token;
+    // console.log(token)
+    if (token) res.status(200).json({ isLoggedIn: true });
+    else res.status(200).json({ isLoggedIn: false });
+  } catch (error) {
+    res.status(401).json({ message: error });
+    console.log({ message: error });
+  }
+});
+
+app.get("/logout", (req, res) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "Logged Out Successfully" });
+});
 
 app.post("/login", async (req, res) => {
   try {
@@ -36,8 +83,8 @@ app.post("/login", async (req, res) => {
     const result = await bcrypt.compare(req.body.password, user.password);
     if (result == false)
       return res.status(401).json({ message: "Incorrect credential" });
-    const token=jwt.sign(user.email,"secretKey");
-    res.cookie("token",token)
+    const token = jwt.sign(user.email, "secretKey");
+    res.cookie("token", token);
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {
     res.status(400).json({ message: err });
