@@ -16,25 +16,7 @@ const userSchema = mongoose.Schema({
     type: Number,
     default: 0,
   },
-  currentPlan: {
-    type: [
-      {
-        image: String,
-        description: String,
-        duration: Number,
-        sets: Number,
-        done: {
-          type: Boolean,
-          default: false,
-        },
-        review: {
-          type: String,
-          default: "",
-        },
-      },
-    ],
-    default: [],
-  },
+  exercisePlan: { type: mongoose.Schema.Types.ObjectId, ref: "UserExercisePlan"},
   otherInfo: {
     type: String,
     default: "",

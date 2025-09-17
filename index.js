@@ -9,7 +9,7 @@ const jwt = require("jsonwebtoken");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fetch = require("node-fetch"); //=>for rapid api
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
+const UserExercisePlan=require("./models/userPlanModel")
 app.use(cookieParser());
 app.use(
   cors({
@@ -27,31 +27,105 @@ app.post("/generate", async (req, res) => {
     { email: email },
     { $set: req.body }, // update only the fields provided
     { new: true } // return the updated document
-  );
+  ).populate("exercisePlan");
 
   console.log(updatedUser);
   const prompt = `
-    Generate a 30-day exercise plan for an individual:
-    - Age: ${updatedUser.age} years
-    - Weight: ${updatedUser.weight} kg
-    - Height: ${updatedUser.height} ft
-    - Additional Info: ${updatedUser.otherInfo}
+Generate a 10-day workout plan for an individual in JSON Format having details as:
+- Age: ${updatedUser.age} years
+- Weight: ${updatedUser.weight} kg
+- Height: ${updatedUser.height} ft
+- Additional Info: ${updatedUser.otherInfo}
 
-    Return the response strictly in JSON with the structure:
-    [
-      { "day": 1, "exercises": ["exercise1", "exercise2", ...] },
-      { "day": 2, "exercises": [...] }
+Constraints:
+- All exercises must be doable at home or in a park.
+- Allowed equipment: body weight, yoga mat, resistance band, pull-up bar, or dumbbells.
+- Avoid gym-only machines or expensive equipment.
+- Include strength, cardio, mobility, and core work.
+
+Requirements:
+1. Each workout day must contain at least 10 exercises.
+2. There must be at least 10 unique workout plans across the 30 days.
+3. Exercises should cover different muscle groups across the unique plans.
+4. Detailed and clear Exercise steps.
+Output Format (strict JSON only):
+
+[
+  {
+    "day": <day number>,
+    "exercises": [
+      {
+        "name": "Exercise Name",
+        "sets and reps": "String",
+        "duration": <integer seconds>,
+        "rest(between exercises)": <integer seconds>,
+        "focusArea": "Target muscles or body parts",
+        "equipment": "Required equipment or 'body weight'",
+        "steps": [
+          "Step 1 instruction",
+          "Step 2 instruction",
+          "Step 3 instruction"
+        ]
+      }
     ]
-    `;
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+  }
+]
+
+Rules:
+-if reps has some text like as many as possible or any other make reps as string
+- "duration" and "rest" must be numbers in seconds only.
+- "sets" and "reps" must be integers
+- If exercise is duration-based, set "reps": 0 and put seconds in "duration".
+- If exercise is rep-based, set "duration": 0.
+- Ensure exactly 10 days are generated.
+- Ensure the JSON is valid and contains no explanation or text outside the JSON.
+`;
+
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  let result = await model.generateContent(prompt);
+  let text = await result.response.text();
+  function extractJSON(str) {
+    return str.replace(/```json|```/g, '').trim();
+}
+    text = extractJSON(text);
     console.log(text)
+    // console.log(result)
+    let plan;
+  try {
+    plan=JSON.parse(text);
+  } catch {
+    console.warn("Invalid JSON, retrying with repair...");
+
+    const repairPrompt = `
+    Fix the following invalid JSON and return ONLY valid JSON:
+    ${text}
+    `;
+
+    result = await model.generateContent(repairPrompt);
+    text = extractJSON(await(result.response.text()));
+    plan=JSON.parse(text); // if still invalid, throw
+  }
+  if (updatedUser.exercisePlan) {
+    // User has an existing plan → update it
+    updatedUser.exercisePlan.plan = plan;
+    await updatedUser.exercisePlan.save();
+    console.log("Plan updated successfully");
+  } else {
+    // User has no plan → create a new one
+    const planDoc = await UserExercisePlan.create({
+      userId: updatedUser._id,
+      plan: plan
+    });
+    updatedUser.exercisePlan=planDoc._id;
+    await updatedUser.save();
+}
+//   const 
+//   console.log(text);
 });
 
 app.post("/generatePlan", async (req, res) => {
   const token = req.cookies.token;
-  const email = jwt.verify(token,"secretKey");
+  const email = jwt.verify(token, "secretKey");
   // console.log(token);
   const user = await userModel.findOne({ email: email });
   // console.log(user);
@@ -113,7 +187,7 @@ app.post("/register", async (req, res) => {
 });
 
 app.get("/listUsers", async (req, res) => {
-  const users = await userModel.find({});
+  const users = await userModel.find().populate("exercisePlan");
   res.send(users);
 });
 
