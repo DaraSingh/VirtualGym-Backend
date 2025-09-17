@@ -16,6 +16,10 @@ const userSchema = mongoose.Schema({
     type: Number,
     default: 0,
   },
+  curDay:{
+    type:Number,
+    default:0
+  },
   exercisePlan: { type: mongoose.Schema.Types.ObjectId, ref: "UserExercisePlan"},
   otherInfo: {
     type: String,

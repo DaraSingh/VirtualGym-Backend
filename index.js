@@ -19,6 +19,17 @@ app.use(
 );
 app.use(express.json());
 
+app.post("/workout",async(req,res)=>{
+    const token=req.cookies.token;
+    const email=jwt.verify(token,"secretKey");
+    const user=await userModel.findOne({email:email}).populate("exercisePlan");
+    if(user){
+        // console.log(user.exercisePlan.plan[user.curDay])
+        res.json({day:user.curDay,plan:user.exercisePlan.plan[user.curDay]})
+    }
+})
+
+
 app.post("/generate", async (req, res) => {
   // console.log(req.body)
   const token = req.cookies.token;
@@ -48,7 +59,7 @@ Requirements:
 2. There must be at least 10 unique workout plans across the 30 days.
 3. Exercises should cover different muscle groups across the unique plans.
 4. Detailed and clear Exercise steps.
-Output Format (strict JSON only):
+Output Format (strict JSON only) avoid trailing commas where not needed:
 
 [
   {
@@ -81,7 +92,7 @@ Rules:
 - Ensure the JSON is valid and contains no explanation or text outside the JSON.
 `;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   let result = await model.generateContent(prompt);
   let text = await result.response.text();
   function extractJSON(str) {
@@ -109,7 +120,8 @@ Rules:
     // User has an existing plan → update it
     updatedUser.exercisePlan.plan = plan;
     await updatedUser.exercisePlan.save();
-    console.log("Plan updated successfully");
+    // console.log("Plan updated successfully");
+    res.status(200).json({message:"Plan Updated successfully"})
   } else {
     // User has no plan → create a new one
     const planDoc = await UserExercisePlan.create({
@@ -117,10 +129,11 @@ Rules:
       plan: plan
     });
     updatedUser.exercisePlan=planDoc._id;
+    planDoc.userId=updatedUser._id;
+    await planDoc.save();
     await updatedUser.save();
+    res.status(200).json({message:"Plan Created successfully"})
 }
-//   const 
-//   console.log(text);
 });
 
 app.post("/generatePlan", async (req, res) => {
