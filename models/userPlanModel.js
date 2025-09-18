@@ -2,9 +2,10 @@ const mongoose=require("mongoose")
 
 const exerciseSchema = mongoose.Schema({
   name: { type: String, required: true },
-  sets_and_reps: { type: String},
+  sets: { type: mongoose.Schema.Types.Mixed}, // can be Number or String
+  reps:{type: mongoose.Schema.Types.Mixed}, // can be Number or String
   duration: { type: Number, default: 0 }, // in seconds
-  rest: { type: Number, default: 60 }, // optional rest between sets
+  rest: { type: Number, default: 30 }, // optional rest between sets
   steps: { type: [String], default: [] }, // instructions
   equipment: { type: String, default: "body weight" },
   focusArea: { type: String },

@@ -19,6 +19,17 @@ app.use(
 );
 app.use(express.json());
 
+app.post('/DoneToday',async(req,res)=>{
+    const token=req.cookies.token;
+    const email=jwt.verify(token,"secretKey");
+    const user=await userModel.findOne({email:email});
+    user.curDay++;
+    if(user.curDay>=10) user.curDay=0
+    user.save();
+    res.status(200).json({message:"Congratulation You Did It."})
+})
+
+
 app.post("/workout",async(req,res)=>{
     const token=req.cookies.token;
     const email=jwt.verify(token,"secretKey");
@@ -60,14 +71,15 @@ Requirements:
 3. Exercises should cover different muscle groups across the unique plans.
 4. Detailed and clear Exercise steps.
 Output Format (strict JSON only) avoid trailing commas where not needed:
-
+5. reps,sets,durations should be integer only (no text)
 [
   {
     "day": <day number>,
     "exercises": [
       {
         "name": "Exercise Name",
-        "sets and reps": "String",
+        "sets": <integer count>,
+        "reps": <integer count>,
         "duration": <integer seconds>,
         "rest(between exercises)": <integer seconds>,
         "focusArea": "Target muscles or body parts",
@@ -89,10 +101,11 @@ Rules:
 - If exercise is duration-based, set "reps": 0 and put seconds in "duration".
 - If exercise is rep-based, set "duration": 0.
 - Ensure exactly 10 days are generated.
+-Ensure reps and sets are integer only
 - Ensure the JSON is valid and contains no explanation or text outside the JSON.
 `;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   let result = await model.generateContent(prompt);
   let text = await result.response.text();
   function extractJSON(str) {
