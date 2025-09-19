@@ -187,7 +187,9 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Incorrect credential" });
     const token = jwt.sign(user.email,process.env.SECRET_KEY);
     res.cookie("token", token,{
-        sameSite:"none"
+        httpOnly: true,
+        sameSite:"none",
+        secure:false
     });
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {
