@@ -21,7 +21,7 @@ app.use(express.json());
 
 app.post('/DoneToday',async(req,res)=>{
     const token=req.cookies.token;
-    const email=jwt.verify(token,"secretKey");
+    const email=jwt.decode(token);
     const user=await userModel.findOne({email:email});
     user.curDay++;
     if(user.curDay>=10) user.curDay=0
@@ -32,7 +32,7 @@ app.post('/DoneToday',async(req,res)=>{
 
 app.post("/workout",async(req,res)=>{
     const token=req.cookies.token;
-    const email=jwt.verify(token,"secretKey");
+    const email=jwt.decode(token);
     const user=await userModel.findOne({email:email}).populate("exercisePlan");
     if(user){
         // console.log(user.exercisePlan.plan[user.curDay])
@@ -44,13 +44,15 @@ app.post("/workout",async(req,res)=>{
 app.post("/generate", async (req, res) => {
   // console.log(req.body)
   const token = req.cookies.token;
-  const email = jwt.verify(token, "secretKey");
+  const email = jwt.decode(token);
+  console.log(email)
   const updatedUser = await userModel.findOneAndUpdate(
     { email: email },
     { $set: req.body }, // update only the fields provided
     { new: true } // return the updated document
   ).populate("exercisePlan");
-
+  updatedUser.curDay=0;
+  updatedUser.save();
   console.log(updatedUser);
   const prompt = `
 Generate a 10-day workout plan for an individual in JSON Format having details as:
@@ -151,12 +153,12 @@ Rules:
 
 app.post("/generatePlan", async (req, res) => {
   const token = req.cookies.token;
-  const email = jwt.verify(token, "secretKey");
+  const email = jwt.decode(token);
   // console.log(token);
   const user = await userModel.findOne({ email: email });
   // console.log(user);
   if (user) res.status(200).json(user);
-  else res.status(400).json({ message: "Record Not Found" });
+  else res.status(201).json({ message: "Record Not Found" });
 });
 
 app.post("/check_auth", (req, res) => {
@@ -183,7 +185,7 @@ app.post("/login", async (req, res) => {
     const result = await bcrypt.compare(req.body.password, user.password);
     if (result == false)
       return res.status(401).json({ message: "Incorrect credential" });
-    const token = jwt.sign(user.email, "secretKey");
+    const token = jwt.sign(user.email,process.env.SECRET_KEY);
     res.cookie("token", token);
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {

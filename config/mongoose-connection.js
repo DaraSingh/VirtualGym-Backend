@@ -1,6 +1,7 @@
 const mongoose=require("mongoose")
 const dotenv=require("dotenv")
 dotenv.config()
-mongoose.connect("mongodb://localhost/gymDb",console.log("connected to server"))
+const URI=process.env.MONGODB_URI;
 
+mongoose.connect(URI,console.log("connected to server"))
 module.exports=mongoose.connection
