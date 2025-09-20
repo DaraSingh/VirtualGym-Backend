@@ -13,7 +13,7 @@ const UserExercisePlan=require("./models/userPlanModel")
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "https://aivirtualgym.netlify.app/",
+    origin: "https://aivirtualgym.netlify.app",
     credentials: true,
   })
 );
