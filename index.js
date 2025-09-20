@@ -174,7 +174,11 @@ app.post("/check_auth", (req, res) => {
 });
 
 app.get("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none"
+    });
   res.status(200).json({ message: "Logged Out Successfully" });
 });
 
@@ -186,7 +190,11 @@ app.post("/login", async (req, res) => {
     if (result == false)
       return res.status(401).json({ message: "Incorrect credential" });
     const token = jwt.sign(user.email,process.env.SECRET_KEY);
-    res.cookie("token", token);
+    res.cookie("token", token,{
+        httpOnly: true,
+        secure: true,
+        sameSite: "none"
+    });
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {
     res.status(400).json({ message: err });
