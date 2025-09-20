@@ -25,7 +25,7 @@ app.post('/DoneToday',async(req,res)=>{
     const user=await userModel.findOne({email:email});
     user.curDay++;
     if(user.curDay>=10) user.curDay=0
-    user.save();
+    await user.save();
     res.status(200).json({message:"Congratulation You Did It."})
 })
 
@@ -69,7 +69,7 @@ Constraints:
 
 Requirements:
 1. Each workout day must contain at least 10 exercises.
-2. There must be at least 10 unique workout plans across the 30 days.
+2. There must be at least 10 unique workout plans across the 10 days.
 3. Exercises should cover different muscle groups across the unique plans.
 4. Detailed and clear Exercise steps.
 Output Format (strict JSON only) avoid trailing commas where not needed:
@@ -188,8 +188,8 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign(user.email,process.env.SECRET_KEY);
     res.cookie("token", token,{
         httpOnly: true,
-        sameSite:"none",
-        secure:false
+        secure:true,
+        sameSite:"none"
     });
     res.status(200).json({ message: "Logged in Successfully" });
   } catch (err) {
